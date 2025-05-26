@@ -1,0 +1,17 @@
+[gd_scene load_steps=4 format=3 uid="uid://dplv7ravk26h8"]
+
+[ext_resource type="PackedScene" uid="uid://dc6qvqueaxtg5" path="res://scenes/player.tscn" id="1_gqqsr"]
+[ext_resource type="PackedScene" uid="uid://cws2nmhkmjq2" path="res://scenes/enemy.tscn" id="3_m6mqu"]
+[ext_resource type="Script" uid="uid://juxthjb247c" path="res://scripts/managers/combat_manager.gd" id="5_8rjcw"]
+
+[node name="Game" type="Node2D"]
+
+[node name="Player" parent="." instance=ExtResource("1_gqqsr")]
+
+[node name="Camera2D" type="Camera2D" parent="Player"]
+
+[node name="Enemy" parent="." groups=["enemy"] instance=ExtResource("3_m6mqu")]
+position = Vector2(24, -290)
+
+[node name="combat_manager" type="Node2D" parent="." groups=["combat_manager"]]
+script = ExtResource("5_8rjcw")
