@@ -1,8 +1,13 @@
-[gd_scene load_steps=5 format=3 uid="uid://dc6qvqueaxtg5"]
+[gd_scene load_steps=10 format=3 uid="uid://dc6qvqueaxtg5"]
 
-[ext_resource type="Texture2D" uid="uid://dqggnyju5unkt" path="res://assets/icon.svg" id="1_4flbx"]
-[ext_resource type="Script" uid="uid://d3hawd0jyt6va" path="res://scripts/combat/player.gd" id="1_onrkg"]
-[ext_resource type="Texture2D" uid="uid://hjhwj0ap323n" path="res://assets/progress-bar-circle.png" id="3_i3pqv"]
+[ext_resource type="Texture2D" uid="uid://bpq2ruyvmru5w" path="res://assets/icon.svg" id="1_4flbx"]
+[ext_resource type="Script" uid="uid://d3hawd0jyt6va" path="res://scripts/entities/player/player.gd" id="1_onrkg"]
+[ext_resource type="Texture2D" uid="uid://csg7m8uwgb1un" path="res://assets/progress-bar-circle.png" id="3_i3pqv"]
+[ext_resource type="Script" uid="uid://d2ivrkk7abily" path="res://scripts/entities/player/player_movement_component.gd" id="4_dqkch"]
+[ext_resource type="Script" uid="uid://dikpclbt0dsdn" path="res://scripts/entities/player/combat_action_manager.gd" id="5_qlg0r"]
+[ext_resource type="Script" uid="uid://bjr5kfwasj8fm" path="res://scripts/entities/player/radial_action_menu.gd" id="6_tuyoq"]
+[ext_resource type="Script" uid="uid://82111y20ywov" path="res://scripts/entities/player/player_turn_handler.gd" id="7_fjrip"]
+[ext_resource type="Script" uid="uid://dk6gtp8sgdegp" path="res://scripts/entities/player/player_ability_manager.gd" id="8_smehm"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_onrkg"]
 size = Vector2(123, 120)
@@ -16,20 +21,6 @@ texture = ExtResource("1_4flbx")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 position = Vector2(0, -1)
 shape = SubResource("RectangleShape2D_onrkg")
-
-[node name="ActionButtonsContainer" type="Control" parent="." groups=["player_ui_container_group"]]
-visible = false
-visibility_layer = 524288
-z_index = 100
-layout_mode = 3
-anchors_preset = 0
-mouse_filter = 2
-
-[node name="Button" type="Button" parent="ActionButtonsContainer"]
-layout_mode = 0
-offset_right = 8.0
-offset_bottom = 8.0
-flat = true
 
 [node name="TextureProgressBar" type="TextureProgressBar" parent="."]
 visibility_layer = 513
@@ -51,3 +42,26 @@ fill_mode = 4
 texture_under = ExtResource("3_i3pqv")
 texture_progress = ExtResource("3_i3pqv")
 tint_under = Color(0.0980392, 0.0980392, 0.0980392, 0.627451)
+
+[node name="PlayerMovementComponent" type="Node" parent="."]
+script = ExtResource("4_dqkch")
+
+[node name="CombatActionManager" type="Node" parent="."]
+script = ExtResource("5_qlg0r")
+
+[node name="PlayerTurnHandler" type="Node" parent="."]
+script = ExtResource("7_fjrip")
+
+[node name="PlayerAbilityManager" type="Node" parent="."]
+script = ExtResource("8_smehm")
+
+[node name="UIContainer" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="RadialActionMenu" type="Control" parent="UIContainer"]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("6_tuyoq")

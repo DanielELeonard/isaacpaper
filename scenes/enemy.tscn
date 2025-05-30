@@ -1,13 +1,15 @@
-[gd_scene load_steps=5 format=3 uid="uid://cws2nmhkmjq2"]
+[gd_scene load_steps=6 format=3 uid="uid://cws2nmhkmjq2"]
 
-[ext_resource type="Texture2D" uid="uid://dqggnyju5unkt" path="res://assets/icon.svg" id="1_7k104"]
-[ext_resource type="Script" uid="uid://dwg5d2o14t1xc" path="res://scripts/combat/enemy.gd" id="1_md0e3"]
+[ext_resource type="Texture2D" uid="uid://bpq2ruyvmru5w" path="res://assets/icon.svg" id="1_7k104"]
+[ext_resource type="Script" uid="uid://dwg5d2o14t1xc" path="res://scripts/entities/enemy.gd" id="1_md0e3"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_4gyqm"]
 size = Vector2(123, 120)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_qi2p4"]
 size = Vector2(122, 115)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_md0e3"]
 
 [node name="enemy" type="CharacterBody2D"]
 script = ExtResource("1_md0e3")
@@ -36,3 +38,13 @@ offset_top = -68.0
 offset_right = 214.0
 offset_bottom = 68.0
 color = Color(1, 0.00392157, 0.0431373, 1)
+
+[node name="DetectionArea" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DetectionArea"]
+scale = Vector2(36, -28.5021)
+shape = SubResource("CircleShape2D_md0e3")
+
+[node name="Healthbar" type="ProgressBar" parent="."]
+offset_right = 4.0
+offset_bottom = 27.0
