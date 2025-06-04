@@ -8,6 +8,8 @@
 
 [node name="Player" parent="." instance=ExtResource("1_gqqsr")]
 
+[node name="Camera2D" type="Camera2D" parent="Player"]
+
 [node name="Enemy" parent="." groups=["enemy"] instance=ExtResource("3_m6mqu")]
 position = Vector2(24, -290)
 

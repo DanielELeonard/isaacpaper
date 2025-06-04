@@ -1,4 +1,4 @@
-extends "res://resources/actions/combat_action.gd"
+extends CombatAction
 class_name BasicDefendAction
 
 @export var defense_multiplier: float = 1.5

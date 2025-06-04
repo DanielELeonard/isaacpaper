@@ -8,6 +8,14 @@ extends CharacterBody2D
 @export_group("Debug")
 @export var debug_mode: bool = true
 
+@export_group("Stats")
+@export var base_stats: Dictionary = {
+	"health": 100,
+	"defense": 10,
+	"attack": 10,
+	"speed": 100
+}
+
 # Component references
 @onready var movement_component: PlayerMovementComponent = $PlayerMovementComponent
 @onready var action_manager: CombatActionManager = $CombatActionManager
@@ -15,14 +23,25 @@ extends CharacterBody2D
 @onready var turn_handler: PlayerTurnHandler = $PlayerTurnHandler
 @onready var ability_manager: PlayerAbilityManager = $PlayerAbilityManager
 @onready var turn_timer: TextureProgressBar = $TextureProgressBar
+@onready var ability_indicator: AbilityIndicator = $UIContainer/AbilityIndicator
 # Core state
 var current_health: int
 var combat_manager: Node
+var equipped_items: Array[Equipment] = []
 
 signal player_defeated
+signal health_changed(current: int, maximum: int)
+
+# Track invulnerability for abilities like dash
+var is_invulnerable: bool = false
+
+# Add these with other properties
+var current_stats: Dictionary = {}
+var stat_modifiers: Dictionary = {}
 
 func _ready() -> void:
 	current_health = max_health
+	initialize_stats()
 	add_to_group("player")
 	
 	# Get combat manager reference first
@@ -74,6 +93,23 @@ func setup_components() -> void:
 
 	if debug_mode:
 		print("Components setup completed")
+		
+	if ability_manager:
+		# Add dash ability
+		var dash = DashAbility.new()
+		dash.ability_name = "Dash"
+		dash.cooldown = 1.5
+		dash.can_use_in_enemy_turn = true
+		ability_manager.add_ability(dash)
+		
+		# Setup ability UI
+		if ability_indicator:
+			ability_indicator.setup_ability(dash)
+			ability_manager.ability_cooldown_updated.connect(
+				func(ability, progress): ability_indicator.update_cooldown(progress)
+			)
+		else:
+			push_error("AbilityIndicator not found!")
 
 func _physics_process(_delta: float) -> void:
 	# Movement is now handled by the movement component
@@ -86,11 +122,24 @@ func update_movement_permissions() -> void:
 					  combat_manager.current_state == combat_manager.CombatState.TRANSITIONING
 		movement_component.set_movement_enabled(can_move)
 
+func set_invulnerable(value: bool) -> void:
+	is_invulnerable = value
+	# Could add visual feedback here
+	modulate.a = 0.5 if value else 1.0
+
 func take_damage(amount: int) -> void:
-	if debug_mode:
-		print("Player taking %d damage" % amount)
+	if is_invulnerable:
+		return
+		
+	# Apply defense reduction
+	var defense = get_stat("defense")
+	var final_damage = max(1, amount - defense) # Ensure at least 1 damage
 	
-	current_health -= amount
+	if debug_mode:
+		print("Player taking %d damage (reduced from %d by %d defense)" % [final_damage, amount, defense])
+	
+	current_health -= final_damage
+	emit_signal("health_changed", current_health, max_health)
 	
 	if current_health <= 0:
 		die()
@@ -154,3 +203,53 @@ func _on_turn_started(turn_type: int, duration: float) -> void:
 	if turn_timer.visible:
 		turn_timer.value = 100 # Reset to full
 		turn_timer.modulate = Color(1.0, 1.0, 1.0) # Reset color
+
+func register_equipment_events(equipment: Equipment) -> void:
+	if equipment not in equipped_items:
+		equipped_items.append(equipment)
+
+func _on_hit_enemy(enemy: Node2D, damage: float) -> void:
+	for equipment in equipped_items:
+		equipment.on_player_hit_enemy(enemy, damage)
+
+func _on_ability_used(ability: Ability) -> void:
+	if debug_mode:
+		print("Used ability: ", ability.ability_name)
+
+func _on_ability_ready(ability: Ability) -> void:
+	if debug_mode:
+		print("Ability ready: ", ability.ability_name)
+
+func initialize_stats() -> void:
+	current_stats = base_stats.duplicate()
+	stat_modifiers = {}
+	for stat in base_stats.keys():
+		stat_modifiers[stat] = []
+
+func modify_stat(stat_name: String, amount: float) -> void:
+	if not stat_name in current_stats:
+		push_error("Attempting to modify non-existent stat: %s" % stat_name)
+		return
+		
+	stat_modifiers[stat_name].append(amount)
+	_recalculate_stat(stat_name)
+	
+	if debug_mode:
+		print("Modified stat %s by %f. New value: %f" % [stat_name, amount, current_stats[stat_name]])
+
+func _recalculate_stat(stat_name: String) -> void:
+	var base = base_stats[stat_name]
+	var total_modifier = 0.0
+	
+	for modifier in stat_modifiers[stat_name]:
+		total_modifier += modifier
+		
+	current_stats[stat_name] = base + total_modifier
+
+func get_stat(stat_name: String) -> float:
+	return current_stats.get(stat_name, 0.0)
+
+func clear_stat_modifiers() -> void:
+	for stat in stat_modifiers.keys():
+		stat_modifiers[stat].clear()
+		_recalculate_stat(stat)

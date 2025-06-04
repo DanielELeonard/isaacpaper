@@ -1,13 +1,14 @@
-[gd_scene load_steps=10 format=3 uid="uid://dc6qvqueaxtg5"]
+[gd_scene load_steps=11 format=3 uid="uid://dc6qvqueaxtg5"]
 
-[ext_resource type="Texture2D" uid="uid://bpq2ruyvmru5w" path="res://assets/icon.svg" id="1_4flbx"]
+[ext_resource type="Texture2D" uid="uid://7atwicmgcg13" path="res://assets/icon.svg" id="1_4flbx"]
 [ext_resource type="Script" uid="uid://d3hawd0jyt6va" path="res://scripts/entities/player/player.gd" id="1_onrkg"]
-[ext_resource type="Texture2D" uid="uid://csg7m8uwgb1un" path="res://assets/progress-bar-circle.png" id="3_i3pqv"]
+[ext_resource type="Texture2D" uid="uid://d0gwk5vou5q8v" path="res://assets/progress-bar-circle.png" id="3_i3pqv"]
 [ext_resource type="Script" uid="uid://d2ivrkk7abily" path="res://scripts/entities/player/player_movement_component.gd" id="4_dqkch"]
 [ext_resource type="Script" uid="uid://dikpclbt0dsdn" path="res://scripts/entities/player/combat_action_manager.gd" id="5_qlg0r"]
 [ext_resource type="Script" uid="uid://bjr5kfwasj8fm" path="res://scripts/entities/player/radial_action_menu.gd" id="6_tuyoq"]
 [ext_resource type="Script" uid="uid://82111y20ywov" path="res://scripts/entities/player/player_turn_handler.gd" id="7_fjrip"]
 [ext_resource type="Script" uid="uid://dk6gtp8sgdegp" path="res://scripts/entities/player/player_ability_manager.gd" id="8_smehm"]
+[ext_resource type="PackedScene" uid="uid://bxug4kq7dbng6" path="res://scenes/ui/ability_indicator.tscn" id="9_ur7pv"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_onrkg"]
 size = Vector2(123, 120)
@@ -55,7 +56,11 @@ script = ExtResource("7_fjrip")
 [node name="PlayerAbilityManager" type="Node" parent="."]
 script = ExtResource("8_smehm")
 
+[node name="Camera2D" type="Camera2D" parent="."]
+zoom = Vector2(0.7, 0.7)
+
 [node name="UIContainer" type="Control" parent="."]
+z_index = 10
 layout_mode = 3
 anchors_preset = 0
 offset_right = 40.0
@@ -65,3 +70,9 @@ offset_bottom = 40.0
 layout_mode = 3
 anchors_preset = 0
 script = ExtResource("6_tuyoq")
+
+[node name="AbilityIndicator" parent="UIContainer" instance=ExtResource("9_ur7pv")]
+offset_left = -786.0
+offset_top = -412.0
+offset_right = -722.0
+offset_bottom = -348.0

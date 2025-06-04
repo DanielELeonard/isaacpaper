@@ -10,13 +10,21 @@ signal health_changed(current, maximum)
 @export_group("Enemy Type")
 @export var enemy_type: EnemyType = EnemyType.MELEE
 
+
+@onready var ai_manager = $ai_manager
+@onready var detection_manager = $detection_manager
+@onready var attack_manager = $attack_manager
+@onready var movement_manager = $movement_manager
+
+
+
 @export_group("Combat Properties")
 @export var speed: float = 100.0
-@export var stop_distance: float = 200.0
+@export var stop_distance: float = 120.0  # Adjusted for better combat feel
 @export var attack_damage: int = 10
-@export var attack_windup_time: float = 1.0
+@export var attack_windup_time: float = 0.8  # Slightly faster telegraph
 @export var max_health: int = 100
-@export var idle_cooldown: float = 2.0
+@export var idle_cooldown: float = 1.5  # More frequent attacks
 @export var knockback_resistance: float = 0.5 # 0 = no resistance, 1 = immune
 
 @export_group("AI Behavior")
@@ -63,14 +71,18 @@ var combat_manager: Node2D
 # Status effects
 var status_effects: Array[String] = []
 var knockback_velocity: Vector2 = Vector2.ZERO
+var target_in_attack_range: bool = false
 
 func _ready() -> void:
 	setup_references()
 	setup_timers()
 	setup_visual_components()
-	setup_detection()
 	initialize_enemy_type()
-	
+	attack_manager.setup(self, attack_area, stop_distance, attack_damage, debug_mode)
+	detection_manager.setup(self, detection_area, detection_range, lose_target_distance, debug_mode)
+	ai_manager.setup(self)
+	movement_manager.setup(self)
+
 	spawn_position = global_position
 	current_health = max_health
 	wander_target = spawn_position
@@ -84,6 +96,7 @@ func _ready() -> void:
 func setup_references() -> void:
 	player = get_tree().get_first_node_in_group("player")
 	combat_manager = get_tree().get_first_node_in_group("combat_manager")
+
 
 func setup_timers() -> void:
 	# Attack timer for telegraph duration
@@ -130,15 +143,6 @@ func setup_visual_components() -> void:
 		health_bar.value = current_health
 		health_changed.connect(_on_health_changed)
 
-func setup_detection() -> void:
-	if detection_area:
-		detection_area.body_entered.connect(_on_detection_area_entered)
-		detection_area.body_exited.connect(_on_detection_area_exited)
-		# Scale detection area based on detection range
-		var collision_shape = detection_area.get_child(0) as CollisionShape2D
-		if collision_shape and collision_shape.shape is CircleShape2D:
-			collision_shape.shape.radius = detection_range
-
 func initialize_enemy_type() -> void:
 	# Adjust stats based on enemy type for variety
 	match enemy_type:
@@ -162,29 +166,7 @@ func initialize_enemy_type() -> void:
 			stop_distance = 60.0
 
 func _physics_process(delta: float) -> void:
-	if current_health <= 0:
-		return
-	
-	# Apply knockback physics
-	if knockback_velocity.length() > 0:
-		velocity += knockback_velocity
-		knockback_velocity = knockback_velocity.move_toward(Vector2.ZERO, 500.0 * delta)
-	
-	match current_state:
-		State.IDLE:
-			handle_idle_state(delta)
-		State.MOVING:
-			handle_moving_state(delta)
-		State.TELEGRAPH:
-			handle_telegraph_state(delta)
-		State.ATTACKING:
-			handle_attack_state(delta)
-		State.STUNNED:
-			handle_stunned_state(delta)
-		State.DYING:
-			handle_dying_state(delta)
-	
-	move_and_slide()
+	ai_manager.process_ai(delta)
 
 func handle_idle_state(_delta: float) -> void:
 	velocity = Vector2.ZERO
@@ -206,29 +188,51 @@ func handle_moving_state(_delta: float) -> void:
 	var direction := global_position.direction_to(move_target)
 	var distance := global_position.distance_to(move_target)
 	
-	# Check if we should attack the player
-	if target and target.is_in_group("player") and distance <= stop_distance:
-		velocity = Vector2.ZERO
-		change_state(State.TELEGRAPH)
-		return
+	if target and target.is_in_group("player"):
+		if target_in_attack_range:
+			velocity = Vector2.ZERO
+			if not attacked_this_turn and cooldown_timer.is_stopped():
+				if debug_mode:
+					print("In attack range, starting telegraph")
+				change_state(State.TELEGRAPH)
+				return
+		else:
+			velocity = direction * speed
+			
+				
+	else:
+		velocity = direction * speed
 	
-	# Move toward target
-	velocity = direction * speed
-	look_at(move_target)
-	
-	# Stop if we've reached our wander target
-	if move_target == wander_target and distance < 30.0:
-		change_state(State.IDLE)
+	# Update facing direction
+	if velocity.length() > 0 and sprite:
+		sprite.flip_h = direction.x < 0
 
 func handle_telegraph_state(_delta: float) -> void:
 	velocity = Vector2.ZERO
 	
+	if target:
+		var direction = global_position.direction_to(target.global_position)
+		# Flip the sprite to face the player
+		if sprite:
+			sprite.flip_h = direction.x < 0
+		# Rotate the telegraph visual to point at the player
+		if telegraph_visual:
+			telegraph_visual.rotation = direction.angle()
+	
 	if not telegraph_started:
+		if debug_mode:
+			print("Starting telegraph animation")
 		start_telegraph()
 
 func handle_attack_state(_delta: float) -> void:
 	velocity = Vector2.ZERO
-	execute_attack()
+	if target:
+		var direction = global_position.direction_to(target.global_position)
+		if sprite:
+			sprite.flip_h = direction.x < 0
+		if telegraph_visual:
+			telegraph_visual.rotation = direction.angle()
+	attack_manager.execute_attack()
 
 func handle_stunned_state(_delta: float) -> void:
 	velocity = Vector2.ZERO
@@ -274,36 +278,12 @@ func start_telegraph() -> void:
 	if telegraph_visual:
 		telegraph_visual.show()
 		# Add visual scaling or rotation animation here
+		var tween = create_tween()
+		tween.tween_property(telegraph_visual, "scale", Vector2(1.5, 1.5), attack_windup_time)
 	attack_timer.start()
 	
 	if debug_mode:
 		print("Telegraph started for ", attack_windup_time, " seconds")
-
-func execute_attack() -> void:
-	if attacked_this_turn:
-		return
-	
-	var hit_targets = []
-	var bodies = attack_area.get_overlapping_bodies()
-	
-	for body in bodies:
-		if body.is_in_group("player") or body.is_in_group("damageable"):
-			if body.has_method("take_damage"):
-				body.take_damage(attack_damage)
-				hit_targets.append(body)
-	
-	attacked_this_turn = true
-	telegraph_started = false
-	telegraph_visual.hide()
-	
-	# Emit signal for combat feedback
-	enemy_attacked.emit(attack_damage, global_position)
-	
-	change_state(State.IDLE)
-	cooldown_timer.start()
-	
-	if debug_mode and hit_targets.size() > 0:
-		print("Attack hit ", hit_targets.size(), " targets")
 
 func change_state(new_state: State) -> void:
 	if new_state == current_state:
@@ -335,7 +315,9 @@ func take_damage(amount: int, knockback_direction: Vector2 = Vector2.ZERO, knock
 	else:
 		# Interrupt current action when hurt
 		if current_state == State.TELEGRAPH:
-			telegraph_visual.hide()
+			if telegraph_visual:
+				telegraph_visual.hide()
+				telegraph_visual.scale = Vector2.ONE
 			telegraph_started = false
 			attack_timer.stop()
 		
@@ -373,9 +355,10 @@ func create_basic_telegraph() -> void:
 	telegraph_visual.name = "TelegraphVisual"
 	
 	var indicator = ColorRect.new()
-	indicator.size = Vector2(20, 20)
-	indicator.position = Vector2(-10, -10)
+	indicator.size = Vector2(40, 40)
+	indicator.position = Vector2(-20, -20)
 	indicator.color = Color.RED
+	indicator.color.a = 0.7
 	telegraph_visual.add_child(indicator)
 
 func _choose_new_wander_target() -> void:
@@ -392,11 +375,16 @@ func _choose_new_wander_target() -> void:
 
 # Signal callbacks
 func _on_attack_timer_timeout() -> void:
+	if debug_mode:
+		print("Attack timer timeout - executing attack")
 	change_state(State.ATTACKING)
 
 func _on_cooldown_timeout() -> void:
 	attacked_this_turn = false
-	if is_player_detected:
+	if debug_mode:
+		print("Cooldown finished, can attack again")
+	
+	if is_player_detected and target:
 		change_state(State.MOVING)
 	else:
 		change_state(State.IDLE)
@@ -404,20 +392,6 @@ func _on_cooldown_timeout() -> void:
 func _on_stun_timeout() -> void:
 	if current_health > 0:
 		change_state(State.IDLE)
-
-func _on_detection_area_entered(body: Node2D) -> void:
-	if body.is_in_group("player"):
-		is_player_detected = true
-		target = body
-		if current_state == State.IDLE:
-			change_state(State.MOVING)
-
-func _on_detection_area_exited(body: Node2D) -> void:
-	if body.is_in_group("player"):
-		var distance = global_position.distance_to(body.global_position)
-		if distance > lose_target_distance:
-			is_player_detected = false
-			target = null
 
 func _on_health_changed(current: int, maximum: int) -> void:
 	if health_bar:
@@ -438,3 +412,4 @@ func on_enemy_turn_start() -> void:
 	# Reset any turn-specific flags or behaviors
 	if current_state == State.IDLE and not attacked_this_turn:
 		change_state(State.MOVING)
+	self.wander_target = movement_manager.choose_new_wander_target()
