@@ -5,6 +5,21 @@ class_name DashAbility
 @export var dash_duration: float = 0.2
 @export var dash_invulnerability: bool = true
 
+# Override can_use to check combat state
+func can_use(player: Node2D) -> bool:
+    # First check if base ability allows use
+    if not super.can_use(player):
+        return false
+        
+    # Get combat manager reference
+    var combat_manager = player.combat_manager
+    if not combat_manager:
+        return false
+        
+    # Allow during enemy turn or transitions, but not during player turn
+    return combat_manager.current_state == combat_manager.CombatState.ENEMY_TURN or \
+           combat_manager.current_state == combat_manager.CombatState.TRANSITIONING
+
 func _execute(player: Node2D) -> void:
     # Get dash direction from player's current input
     var input_vector = Input.get_vector("move_left", "move_right", "move_up", "move_down")

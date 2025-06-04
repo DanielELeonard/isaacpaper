@@ -292,8 +292,6 @@ func change_state(new_state: State) -> void:
 	previous_state = current_state
 	current_state = new_state
 	
-	if debug_mode:
-		print("State changed: ", State.keys()[previous_state], " -> ", State.keys()[current_state])
 
 func take_damage(amount: int, knockback_direction: Vector2 = Vector2.ZERO, knockback_force: float = 0.0) -> void:
 	if current_state == State.DYING:

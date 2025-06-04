@@ -39,6 +39,8 @@ var is_invulnerable: bool = false
 var current_stats: Dictionary = {}
 var stat_modifiers: Dictionary = {} # {stat_name: {source_id: value}}
 
+var speed_boots = SpeedBoots.new()
+
 func _ready() -> void:
 	current_health = max_health
 	initialize_stats()
@@ -53,6 +55,9 @@ func _ready() -> void:
 	# Now setup components after they're properly loaded
 	setup_components()
 	setup_input_mappings()
+	
+	
+	self.equip_item(speed_boots)
 
 func setup_components() -> void:
 	# Verify components exist before connecting them
@@ -212,11 +217,17 @@ func equip_item(equipment: Equipment) -> void:
 	if equipment not in equipped_items:
 		equipped_items.append(equipment)
 		equipment.apply_effects(self)
+		if debug_mode:
+			print("\nEquipped: %s" % equipment.equipment_name)
+			print_stats()
 
 func unequip_item(equipment: Equipment) -> void:
 	if equipment in equipped_items:
 		equipment.remove_effects(self)
 		equipped_items.erase(equipment)
+		if debug_mode:
+			print("\nUnequipped: %s" % equipment.equipment_name)
+			print_stats()
 
 func _on_hit_enemy(enemy: Node2D, damage: float) -> void:
 	for equipment in equipped_items:
@@ -260,3 +271,23 @@ func modify_stat(stat_name: String, amount: float, source_id: String = "default"
 		var new_value = get_stat(stat_name)
 		print("Modified stat %s by %f from source %s. New value: %f" % 
 			[stat_name, amount, source_id, new_value])
+
+# Add this function after initialize_stats()
+func print_stats() -> void:
+	if not debug_mode:
+		return
+		
+	print("\n=== Player Stats ===")
+	for stat_name in current_stats.keys():
+		var base = base_stats[stat_name]
+		var current = get_stat(stat_name)
+		var modifiers = stat_modifiers.get(stat_name, {})
+		
+		print("%s:" % stat_name)
+		print("  Base: %.1f" % base)
+		print("  Current: %.1f" % current)
+		if not modifiers.is_empty():
+			print("  Modifiers:")
+			for source in modifiers.keys():
+				print("    %s: %.1f" % [source, modifiers[source]])
+	print("==================\n")
