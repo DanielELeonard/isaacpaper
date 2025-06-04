@@ -10,10 +10,10 @@ extends CharacterBody2D
 
 @export_group("Stats")
 @export var base_stats: Dictionary = {
-	"health": 100,
-	"defense": 10,
-	"attack": 10,
-	"speed": 100
+	"health": 100.0,
+	"defense": 10.0,
+	"attack": 10.0,
+	"speed": 100.0
 }
 
 # Component references
@@ -37,7 +37,7 @@ var is_invulnerable: bool = false
 
 # Add these with other properties
 var current_stats: Dictionary = {}
-var stat_modifiers: Dictionary = {}
+var stat_modifiers: Dictionary = {} # {stat_name: {source_id: value}}
 
 func _ready() -> void:
 	current_health = max_health
@@ -106,7 +106,7 @@ func setup_components() -> void:
 		if ability_indicator:
 			ability_indicator.setup_ability(dash)
 			ability_manager.ability_cooldown_updated.connect(
-				func(ability, progress): ability_indicator.update_cooldown(progress)
+				func(_ability, progress): ability_indicator.update_cooldown(progress)
 			)
 		else:
 			push_error("AbilityIndicator not found!")
@@ -189,7 +189,7 @@ func _on_turn_progress_updated(progress: float) -> void:
 	else:
 		turn_timer.modulate = Color(1.0, 1.0, 1.0) # Normal color
 
-func _on_turn_started(turn_type: int, duration: float) -> void:
+func _on_turn_started(turn_type: int, _duration: float) -> void:
 	if not turn_timer:
 		return
 	
@@ -208,6 +208,16 @@ func register_equipment_events(equipment: Equipment) -> void:
 	if equipment not in equipped_items:
 		equipped_items.append(equipment)
 
+func equip_item(equipment: Equipment) -> void:
+	if equipment not in equipped_items:
+		equipped_items.append(equipment)
+		equipment.apply_effects(self)
+
+func unequip_item(equipment: Equipment) -> void:
+	if equipment in equipped_items:
+		equipment.remove_effects(self)
+		equipped_items.erase(equipment)
+
 func _on_hit_enemy(enemy: Node2D, damage: float) -> void:
 	for equipment in equipped_items:
 		equipment.on_player_hit_enemy(enemy, damage)
@@ -224,32 +234,29 @@ func initialize_stats() -> void:
 	current_stats = base_stats.duplicate()
 	stat_modifiers = {}
 	for stat in base_stats.keys():
-		stat_modifiers[stat] = []
+		stat_modifiers[stat] = {} # Should be {} instead of []
 
-func modify_stat(stat_name: String, amount: float) -> void:
+# Returns the current value of a stat, including all modifiers
+func get_stat(stat_name: String) -> float:
+	var base = current_stats.get(stat_name, 0.0)
+	var modifiers = stat_modifiers.get(stat_name, {})
+	var total_mod = 0.0
+	for value in modifiers.values():
+		total_mod += value
+	return base + total_mod
+
+func modify_stat(stat_name: String, amount: float, source_id: String = "default") -> void:
 	if not stat_name in current_stats:
 		push_error("Attempting to modify non-existent stat: %s" % stat_name)
 		return
-		
-	stat_modifiers[stat_name].append(amount)
-	_recalculate_stat(stat_name)
+	
+	if not stat_modifiers.has(stat_name):
+		stat_modifiers[stat_name] = {}
+	
+	# Store the modifier
+	stat_modifiers[stat_name][source_id] = amount
 	
 	if debug_mode:
-		print("Modified stat %s by %f. New value: %f" % [stat_name, amount, current_stats[stat_name]])
-
-func _recalculate_stat(stat_name: String) -> void:
-	var base = base_stats[stat_name]
-	var total_modifier = 0.0
-	
-	for modifier in stat_modifiers[stat_name]:
-		total_modifier += modifier
-		
-	current_stats[stat_name] = base + total_modifier
-
-func get_stat(stat_name: String) -> float:
-	return current_stats.get(stat_name, 0.0)
-
-func clear_stat_modifiers() -> void:
-	for stat in stat_modifiers.keys():
-		stat_modifiers[stat].clear()
-		_recalculate_stat(stat)
+		var new_value = get_stat(stat_name)
+		print("Modified stat %s by %f from source %s. New value: %f" % 
+			[stat_name, amount, source_id, new_value])

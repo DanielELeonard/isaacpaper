@@ -15,8 +15,6 @@ func process_ai(delta: float) -> void:
 		if distance > enemy.lose_target_distance:
 			enemy.is_player_detected = false
 			enemy.target = null
-			if enemy.debug_mode:
-				print("Player lost (too far away)")
 
 	# Skip logic if dead
 	if enemy.current_health <= 0:

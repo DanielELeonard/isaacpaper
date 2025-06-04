@@ -40,15 +40,14 @@ func apply_stats(player: Node2D) -> void:
 	for stat in stats_modifier:
 		var modifier_value = stats_modifier[stat] * current_stack
 		if player.has_method("modify_stat"):
-			player.modify_stat(stat, modifier_value)
+			player.modify_stat(stat, modifier_value, equipment_name)
 		else:
 			push_warning("Player doesn't have modify_stat method")
 
 func remove_stats(player: Node2D) -> void:
 	for stat in stats_modifier:
-		var modifier_value = stats_modifier[stat] * current_stack
-		if player.has_method("modify_stat"):
-			player.modify_stat(stat, -modifier_value)
+		if player.has_method("remove_stat_modifier"):
+			player.remove_stat_modifier(stat, equipment_name)
 
 # New methods for handling different effect types
 func apply_combat_actions(player: Node2D) -> void:

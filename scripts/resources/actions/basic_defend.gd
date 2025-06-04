@@ -23,9 +23,15 @@ func _perform_action(actor: Node2D, _target: Node2D) -> void:
 	
 	is_defending = true
 	
+	# Get current defense before buff
+	var current_defense = actor.get_stat("defense") if actor.has_method("get_stat") else 0.0
+	
 	# Apply defense buff
-	var defense_boost = actor.base_stats.defense * (defense_multiplier - 1.0)
-	actor.modify_stat("defense", defense_boost)
+	var defense_boost = actor.base_stats["defense"] * (defense_multiplier - 1.0)
+	if actor.debug_mode:
+		print("Defend Action: Current defense: %f, Applying boost: %f" % [current_defense, defense_boost])
+	
+	actor.modify_stat("defense", defense_boost, "defend_action")
 	
 	# Visual feedback
 	_spawn_shield_effect(actor)
@@ -38,7 +44,9 @@ func _perform_action(actor: Node2D, _target: Node2D) -> void:
 	
 	# Connect timeout to remove defense
 	timer.timeout.connect(func():
-		actor.modify_stat("defense", -defense_boost)
+		if actor.debug_mode:
+			print("Defend Action: Removing defense boost: %f" % defense_boost)
+		actor.modify_stat("defense", -defense_boost, "defend_action")
 		is_defending = false
 		timer.queue_free()
 		if actor.has_method("on_defend_end"):
